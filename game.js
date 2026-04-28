@@ -38,16 +38,13 @@ setInterval(() => {
 
 
 // --- 核心渲染與判定 ---
+// --- 核心渲染與判定 ---
 function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
-    // 1. 繪製「鏡像」的攝影機畫面
-    canvasCtx.save(); // 儲存當前畫布狀態
-    canvasCtx.translate(canvasElement.width, 0); // 將原點移到右邊緣
-    canvasCtx.scale(-1, 1); // 水平翻轉 X 軸
+    // 1. 繪製攝影機畫面 (還原成最單純的畫法，MediaPipe 的 selfieMode 會處理鏡像)
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    canvasCtx.restore(); // 恢復畫布狀態！這樣後面的遊戲物件才不會也跟著左右顛倒
 
     // 2. 處理臉部追蹤與指標
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
@@ -62,7 +59,6 @@ function onResults(results) {
 
         isMouthOpen = distance > MOUTH_OPEN_THRESHOLD;
         
-        // 更新狀態文字
         if (isMouthOpen) {
             statusElement.innerText = "指標狀態：已激活 🟢";
             statusElement.style.color = "#44ff44";
@@ -71,9 +67,8 @@ function onResults(results) {
             statusElement.style.color = "#ff4444";
         }
 
-        // ⚠️ 更新嘴巴座標 (加入 1 - x 的鏡像反轉邏輯)
-        const rawMouthX = (upperLip.x + lowerLip.x) / 2;
-        mouthX = (1 - rawMouthX) * canvasElement.width; // X 軸做鏡像反轉
+        // 🌟 還原成原本的座標算法，不需要再手動 1 - x 了
+        mouthX = ((upperLip.x + lowerLip.x) / 2) * canvasElement.width;
         mouthY = ((upperLip.y + lowerLip.y) / 2) * canvasElement.height;
 
         // 繪製嘴巴指標
@@ -92,13 +87,11 @@ function onResults(results) {
         
         obj.y += obj.speed; 
 
-        // 繪製 Emoji 物件
         canvasCtx.font = "50px Arial";
         canvasCtx.textAlign = "center";
         canvasCtx.textBaseline = "middle";
         canvasCtx.fillText(obj.info.symbol, obj.x, obj.y);
 
-        // 碰撞偵測
         const dist = Math.sqrt(Math.pow(obj.x - mouthX, 2) + Math.pow(obj.y - mouthY, 2));
 
         if (dist < (MOUTH_RADIUS + obj.radius)) {
@@ -118,7 +111,7 @@ function onResults(results) {
     canvasCtx.restore();
 }
 
-// 初始化 Face Mesh 與 Camera (與第一階段相同)
+// 初始化 Face Mesh 模型
 const faceMesh = new FaceMesh({locateFile: (file) => {
   return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
 }});
@@ -126,7 +119,8 @@ faceMesh.setOptions({
   maxNumFaces: 1,
   refineLandmarks: true,
   minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5
+  minTrackingConfidence: 0.5,
+  selfieMode: true // 🌟 加入這一行！開啟內建自拍鏡像模式
 });
 faceMesh.onResults(onResults);
 
