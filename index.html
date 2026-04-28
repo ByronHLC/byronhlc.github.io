@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>張嘴互動小遊戲</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 10; }
+        /* 隱藏原始影片，我們全權由 Canvas 繪製畫面，以便疊加遊戲物件 */
+        video { display: none; } 
+        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; z-index: 20; font-family: sans-serif; font-weight: bold; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="ui-layer">
+        <div>分數: <span id="score">0</span></div>
+        <div id="status" style="color: #ff4444;">指標狀態：未激活 (請張嘴)</div>
+    </div>
+    
+    <video id="input_video" autoplay playsinline></video>
+    <canvas id="output_canvas"></canvas>
+
+    <script src="game.js"></script>
+</body>
+</html>
