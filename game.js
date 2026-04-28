@@ -42,8 +42,12 @@ function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
-    // 1. 繪製攝影機畫面
+    // 1. 繪製「鏡像」的攝影機畫面
+    canvasCtx.save(); // 儲存當前畫布狀態
+    canvasCtx.translate(canvasElement.width, 0); // 將原點移到右邊緣
+    canvasCtx.scale(-1, 1); // 水平翻轉 X 軸
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.restore(); // 恢復畫布狀態！這樣後面的遊戲物件才不會也跟著左右顛倒
 
     // 2. 處理臉部追蹤與指標
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
@@ -67,8 +71,9 @@ function onResults(results) {
             statusElement.style.color = "#ff4444";
         }
 
-        // 更新嘴巴座標
-        mouthX = ((upperLip.x + lowerLip.x) / 2) * canvasElement.width;
+        // ⚠️ 更新嘴巴座標 (加入 1 - x 的鏡像反轉邏輯)
+        const rawMouthX = (upperLip.x + lowerLip.x) / 2;
+        mouthX = (1 - rawMouthX) * canvasElement.width; // X 軸做鏡像反轉
         mouthY = ((upperLip.y + lowerLip.y) / 2) * canvasElement.height;
 
         // 繪製嘴巴指標
@@ -85,7 +90,6 @@ function onResults(results) {
     for (let i = fallingObjects.length - 1; i >= 0; i--) {
         let obj = fallingObjects[i];
         
-        // 物件往下掉
         obj.y += obj.speed; 
 
         // 繪製 Emoji 物件
@@ -94,21 +98,18 @@ function onResults(results) {
         canvasCtx.textBaseline = "middle";
         canvasCtx.fillText(obj.info.symbol, obj.x, obj.y);
 
-        // 碰撞偵測：計算物件與嘴巴的距離
+        // 碰撞偵測
         const dist = Math.sqrt(Math.pow(obj.x - mouthX, 2) + Math.pow(obj.y - mouthY, 2));
 
-        // 如果距離小於兩者半徑之和，代表碰到
         if (dist < (MOUTH_RADIUS + obj.radius)) {
-            // 必須是張嘴狀態才能「吃掉」
             if (isMouthOpen) {
-                currentScore += obj.info.score; // 加分或扣分
-                scoreElement.innerText = currentScore; // 更新畫面上的分數
-                fallingObjects.splice(i, 1); // 將物件從陣列中移除 (吃掉)
-                continue; // 處理下一個物件
+                currentScore += obj.info.score; 
+                scoreElement.innerText = currentScore; 
+                fallingObjects.splice(i, 1); 
+                continue; 
             }
         }
 
-        // 如果物件掉出畫面底部，將其移除以節省效能
         if (obj.y > canvasElement.height + 100) {
             fallingObjects.splice(i, 1);
         }
