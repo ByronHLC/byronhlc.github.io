@@ -11,7 +11,14 @@ canvasElement.height = window.innerHeight;
 const imagesToLoad = {
     background: 'grass.png',
     inactiveMouth: 'Magikarp.webp', 
-    activeMouth: 'Gyarados.png'     
+    activeMouth: 'Gyarados.png',
+    // 🌟 新增掉落物素材
+    weezing: '雙蛋瓦斯.png',
+    gengar: '耿鬼.png',
+    charmander: '小火龍.png',
+    squirtle: '傑尼龜.png',
+    pikachu: '超級巨化皮卡丘.png',
+    suicune: '水君.png'
 };
 
 const loadedImages = {};
@@ -31,28 +38,33 @@ function preloadImages() {
         };
         img.onerror = () => {
             console.error(`無法載入圖片：${imagesToLoad[key]}`);
-            alert(`圖片載入失敗：${imagesToLoad[key]}，請確認檔案存在。`);
         };
     }
 }
 
-// --- 遊戲狀態與參數 ---
+// --- 2. 遊戲狀態與參數 ---
 let isMouthOpen = false;
 let currentScore = 0;
 let mouthX = canvasElement.width / 2;
 let mouthY = canvasElement.height / 2;
 
-// 🌟 修改：降低張嘴門檻，並新增動態縮放所需的常數
-const MOUTH_OPEN_THRESHOLD = 0.025; // 原本是 0.04，降低門檻讓女生也能輕鬆玩
-const MOUTH_MAX_OPEN_DISTANCE = 0.07; // 預設嘴巴張到「極限」的距離值
-const BASE_MOUTH_RADIUS = 40; // 基礎碰撞判定半徑
-const BASE_MOUTH_IMG_SIZE = 120; // 基礎圖片大小
+const MOUTH_OPEN_THRESHOLD = 0.025; 
+const MOUTH_MAX_OPEN_DISTANCE = 0.07; 
+const BASE_MOUTH_RADIUS = 40; 
+const BASE_MOUTH_IMG_SIZE = 120; 
 
-// --- 掉落物件系統 ---
+// --- 3. 掉落物件系統 ---
 let fallingObjects = [];
+const FALLING_OBJ_SIZE = 80; // 掉落物顯示的大小
+
+// 🌟 設定自訂物件的分數與對應圖片 Key
 const objectTypes = [
-    { type: 'good', symbol: '🍎', score: 10 },
-    { type: 'bad', symbol: '💣', score: -20 }
+    { key: 'weezing', score: -10 },
+    { key: 'gengar', score: -20 },
+    { key: 'charmander', score: 10 },
+    { key: 'squirtle', score: 10 },
+    { key: 'pikachu', score: 30 },
+    { key: 'suicune', score: 50 }
 ];
 
 setInterval(() => {
@@ -62,28 +74,26 @@ setInterval(() => {
     fallingObjects.push({
         x: Math.random() * (canvasElement.width - 100) + 50,
         y: -50,
-        radius: 30,
-        speed: 4 + Math.random() * 4,
+        radius: 35, // 碰撞判定範圍
+        speed: 3 + Math.random() * 4, 
         info: randomType
     });
-}, 1200);
+}, 1000); // 稍微提高生成頻率，玩起來更熱鬧
 
-// --- 核心渲染與判定 ---
+// --- 4. 核心渲染與判定 ---
 function onResults(results) {
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     
+    // 繪製背景
     if (loadedImages.background) {
         canvasCtx.drawImage(loadedImages.background, 0, 0, canvasElement.width, canvasElement.height);
-    } else {
-        canvasCtx.fillStyle = '#222';
-        canvasCtx.fillRect(0, 0, canvasElement.width, canvasElement.height);
     }
 
-    // 用來儲存當下圖片的尺寸與判定半徑
     let currentImgSize = BASE_MOUTH_IMG_SIZE;
     let currentRadius = BASE_MOUTH_RADIUS;
 
+    // 處理臉部
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
         const landmarks = results.multiFaceLandmarks[0];
         const upperLip = landmarks[13];
@@ -96,32 +106,15 @@ function onResults(results) {
         isMouthOpen = distance > MOUTH_OPEN_THRESHOLD;
         
         let imgToDraw;
-
         if (isMouthOpen) {
-            statusElement.innerText = "指標狀態：已激活 (暴鯉龍) 🟢";
-            statusElement.style.color = "#44ff44";
             imgToDraw = loadedImages.activeMouth;
-
-            // 🌟 核心修改：計算張嘴程度並換算成 1~2 倍的比例
-            // 計算超出門檻的比例 (0 ~ 1 之間)
             let openRatio = (distance - MOUTH_OPEN_THRESHOLD) / (MOUTH_MAX_OPEN_DISTANCE - MOUTH_OPEN_THRESHOLD);
-            
-            // 使用 Math.max 和 Math.min 確保比例被鎖定在 0 到 1 之間
             openRatio = Math.max(0, Math.min(1, openRatio));
-            
-            // 基礎倍率為 1，最大加成 1 倍，最高變為 2 倍大
             const scale = 1 + (openRatio * 1); 
-
             currentImgSize = BASE_MOUTH_IMG_SIZE * scale;
-            currentRadius = BASE_MOUTH_RADIUS * scale; // 判定範圍同步放大
-
+            currentRadius = BASE_MOUTH_RADIUS * scale;
         } else {
-            statusElement.innerText = "指標狀態：未激活 (鯉魚王) 🔴";
-            statusElement.style.color = "#ff4444";
             imgToDraw = loadedImages.inactiveMouth;
-            // 未激活時維持基礎大小 (1倍)
-            currentImgSize = BASE_MOUTH_IMG_SIZE;
-            currentRadius = BASE_MOUTH_RADIUS;
         }
 
         mouthX = ((upperLip.x + lowerLip.x) / 2) * canvasElement.width;
@@ -138,20 +131,25 @@ function onResults(results) {
         }
     }
 
-    // 3. 處理遊戲物件
+    // 處理掉落物
     for (let i = fallingObjects.length - 1; i >= 0; i--) {
         let obj = fallingObjects[i];
-        
         obj.y += obj.speed; 
 
-        canvasCtx.font = "50px Arial";
-        canvasCtx.textAlign = "center";
-        canvasCtx.textBaseline = "middle";
-        canvasCtx.fillText(obj.info.symbol, obj.x, obj.y);
+        // 🌟 繪製自訂圖片物件
+        const objImg = loadedImages[obj.info.key];
+        if (objImg) {
+            canvasCtx.drawImage(
+                objImg,
+                obj.x - FALLING_OBJ_SIZE / 2,
+                obj.y - FALLING_OBJ_SIZE / 2,
+                FALLING_OBJ_SIZE,
+                FALLING_OBJ_SIZE
+            );
+        }
 
+        // 碰撞判定
         const dist = Math.sqrt(Math.pow(obj.x - mouthX, 2) + Math.pow(obj.y - mouthY, 2));
-
-        // 🌟 修改：使用動態變大的 currentRadius 來判定碰撞
         if (dist < (currentRadius + obj.radius)) {
             if (isMouthOpen) {
                 currentScore += obj.info.score; 
@@ -165,10 +163,10 @@ function onResults(results) {
             fallingObjects.splice(i, 1);
         }
     }
-
     canvasCtx.restore();
 }
 
+// 初始化 MediaPipe
 const faceMesh = new FaceMesh({locateFile: (file) => {
   return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
 }});
