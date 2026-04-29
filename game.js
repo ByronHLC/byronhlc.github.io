@@ -11,7 +11,7 @@ canvasElement.height = window.innerHeight;
 // --- 1. 遊戲素材與預載入系統 ---
 // 定義圖片資源路徑
 const imagesToLoad = {
-    background: 'grass.jpg',
+    background: 'grass.png',
     inactiveMouth: 'Magikarp.webp', // 圖 a
     activeMouth: 'Gyarados.png'     // 圖 b
 };
